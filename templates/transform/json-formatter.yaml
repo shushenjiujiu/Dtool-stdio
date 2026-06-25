@@ -1,0 +1,46 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "JSON 格式化"
+description: "将输入的 JSON 字符串格式化为可读形式，支持自定义缩进"
+category: "格式转换"
+tags: ["JSON", "格式化"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "JSON 字符串"
+    type: "textarea"
+    required: true
+    placeholder: '输入 JSON 字符串，例如：{"name":"test","list":[1,2,3]}'
+
+  - id: indent_size
+    label: "缩进空格数"
+    type: "number"
+    default: 2
+    min: 0
+    max: 8
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取 JSON"
+      config:
+        text: "$param.input_text"
+      export: raw_json
+
+    - id: format_json
+      module: "json-format"
+      label: "格式化 JSON"
+      config:
+        indent: "$param.indent_size"
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.format_json"

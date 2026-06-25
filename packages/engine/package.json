@@ -1,0 +1,29 @@
+{
+  "name": "@dtool-studio/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dtool Studio execution engine — DAG scheduler, module registry, pipeline runner",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "ajv": "^8.20.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "js-yaml": "^5.1.0"
+  }
+}

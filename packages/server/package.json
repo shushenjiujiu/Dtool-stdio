@@ -1,0 +1,26 @@
+{
+  "name": "@dtool-studio/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dtool Studio backend — Fastify + WebSocket API server",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@dtool-studio/engine": "workspace:*",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
+    "fastify": "^5.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^5.5.0"
+  }
+}

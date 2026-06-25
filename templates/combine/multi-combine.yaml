@@ -1,0 +1,74 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "多路数据合并"
+description: "将多个输入数据源按模板拼接组合，支持自定义分隔符和重复次数"
+category: "合并/拆分"
+tags: ["合并", "格式化"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_a
+    label: "数据源 A"
+    type: "string"
+    required: true
+    placeholder: "第一部分内容"
+
+  - id: input_b
+    label: "数据源 B"
+    type: "string"
+    required: true
+    placeholder: "第二部分内容"
+
+  - id: separator
+    label: "分隔符"
+    type: "string"
+    default: " → "
+    placeholder: "例如： →  |  ,"
+
+  - id: repeat_count
+    label: "重复次数"
+    type: "number"
+    default: 3
+    min: 1
+    max: 10
+
+flow:
+  steps:
+    - id: read_a
+      module: "input"
+      label: "读取数据 A"
+      config:
+        text: "$param.input_a"
+      export: data_a
+
+    - id: read_b
+      module: "input"
+      label: "读取数据 B"
+      config:
+        text: "$param.input_b"
+      export: data_b
+
+    - id: combine_loop
+      module: "loop"
+      label: "组合循环"
+      config:
+        count: "$param.repeat_count"
+      export: combined
+      substeps:
+        - id: merge
+          module: "combine"
+          label: "合并数据"
+          config:
+            source_a: "$steps.read_a"
+            source_b: "$steps.read_b"
+            separator: "$param.separator"
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.combine_loop"

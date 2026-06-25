@@ -1,0 +1,24 @@
+{
+  "name": "@dtool-studio/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dtool Studio frontend — React/Vite SPA editor",
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}
