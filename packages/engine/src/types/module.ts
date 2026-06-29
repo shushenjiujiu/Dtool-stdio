@@ -1,16 +1,13 @@
 /**
  * Module types — module definition, handler signature, and execution context.
  *
- * These types define the contract between the execution engine and any
- * registered module. Modules are registered at engine initialisation time
- * and identified by a string ID (e.g. "encode/base64").
- *
- * A module = definition (metadata) + handler (execution logic).
+ * Architecture (per Heye's design):
+ *   ModuleMeta       ← shared interface for ALL modules
+ *     ├── ModuleDef  ← atomic module (code handler)
+ *     └── CompositeModule ← composite module (built from sub-modules / steps)
  */
 
 // ── Port definition ────────────────────────────────────────────────────────
-
-export type PortDirection = 'input' | 'output';
 
 export interface PortDef {
   id: string;
@@ -42,15 +39,20 @@ export interface ConfigFieldDef {
   max?: number;                    // for 'number' type
 }
 
-// ── Module definition ──────────────────────────────────────────────────────
+// ── ModuleMeta — shared interface for all modules ──────────────────────────
 
-export type ModuleComplexity = 'basic' | 'advanced' | 'expert';
-
-export interface ModuleDef {
-  /** Unique module ID, e.g. "encode/base64" */
+/**
+ * ModuleMeta is the common external interface for every module type:
+ * atomic (code) modules and composite (built from steps) modules.
+ *
+ * The editor uses this to render the module palette, while the engine
+ * branches based on whether a handler or steps are attached.
+ */
+export interface ModuleMeta {
+  /** Unique module ID, e.g. "encode/base64" or "my-custom-pipeline" */
   id: string;
 
-  /** Display name for the editor UI */
+  /** Display name */
   name: string;
 
   /** Category for grouping in the module palette */
@@ -59,27 +61,24 @@ export interface ModuleDef {
   /** Short description */
   description: string;
 
-  /** Complexity tier — controls visibility in the editor's progressive UI */
-  complexity: ModuleComplexity;
+  tags?: string[];
 
   /** Input ports */
   inputs: PortDef[];
 
   /** Output ports */
   outputs: PortDef[];
+}
 
+// ── Atomic module (code) ──────────────────────────────────────────────────
+
+export interface ModuleDef extends ModuleMeta {
   /** Configurable fields (shown as form in the editor) */
   configFields: ConfigFieldDef[];
 }
 
 // ── Module execution context ───────────────────────────────────────────────
 
-/**
- * Runtime context provided to every module handler.
- *
- * Modules should treat this as read-only (except log/progress which are
- * side-effect channels back to the user).
- */
 export interface ModuleContext {
   /** Resolved input values keyed by port id */
   inputs: Record<string, unknown>;
@@ -101,8 +100,6 @@ export interface ModuleContext {
   /**
    * Abort signal — fires when the user or system cancels execution.
    * Modules should check `aborted` periodically in long operations.
-   *
-   * Minimal interface (avoids dependency on DOM/Node types).
    */
   signal: { readonly aborted: boolean; readonly reason?: unknown };
 
@@ -115,26 +112,10 @@ export interface ModuleContext {
 
 // ── Module handler ─────────────────────────────────────────────────────────
 
-/**
- * A module handler is an async function that receives context and returns
- * output values keyed by output port id.
- *
- * @example
- * ```typescript
- * const handler: ModuleHandler = async (ctx) => {
- *   ctx.log('info', 'processing...', { size: ctx.inputs.data.length });
- *   const result = transform(ctx.inputs.data, ctx.config);
- *   return { output: result };
- * };
- * ```
- */
 export type ModuleHandler = (ctx: ModuleContext) => Promise<Record<string, unknown>>;
 
 // ── Module registration ────────────────────────────────────────────────────
 
-/**
- * A fully registered module = definition + handler.
- */
 export interface RegisteredModule {
   definition: ModuleDef;
   handler: ModuleHandler;

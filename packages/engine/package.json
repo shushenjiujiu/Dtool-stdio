@@ -16,12 +16,15 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "ajv": "^8.20.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^3.2.6"
   },
   "dependencies": {
     "js-yaml": "^5.1.0"

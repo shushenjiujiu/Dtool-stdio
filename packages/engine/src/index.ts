@@ -2,7 +2,7 @@
  * @dtool-studio/engine — Execution engine for dtool Studio
  *
  * Public API surface:
- *   Types        — template, pipeline, module, validation, variable
+ *   Types        — template, pipeline, module, composite, validation, variable
  *   Resolver     — variable reference ($param, $steps) resolution
  *   Scope        — lexical scope chain for loop execution
  *   Validator    — two-layer template validation (structure + semantic)
@@ -20,6 +20,10 @@ export type {
 } from './types/template.js';
 
 export type {
+  CompositeModule,
+} from './types/composite.js';
+
+export type {
   ResolvedStepDef,
   ResolvedPipeline,
   StepOutputs,
@@ -33,12 +37,11 @@ export type {
 } from './types/validation.js';
 
 export type {
-  PortDirection,
   PortDef,
   ConfigFieldType,
   ConfigFieldOption,
   ConfigFieldDef,
-  ModuleComplexity,
+  ModuleMeta,
   ModuleDef,
   ModuleContext,
   ModuleHandler,
@@ -74,3 +77,30 @@ export {
   parseJsonTemplate,
 } from './parser/template-parser.js';
 export type { ParseResult } from './parser/template-parser.js';
+
+// ── Built-in modules ──
+export { ModuleRegistry, registerAll } from './builtin/registry.js';
+
+// ── DAG ──
+export {
+  deriveWires,
+  resolveNodeInputs,
+  validateWires,
+  topologicalSort,
+  executeGraph,
+  buildGraph,
+  COMPOSITE_SENTINEL,
+  derivePorts,
+  parseDerivedPortId,
+  createCompositeHandler,
+} from './dag/index.js';
+export type {
+  WireError,
+  TopoSortResult,
+  DagExecuteCallbacks,
+  DagExecuteOptions,
+  GraphBuilderOptions,
+  PortDerivationInput,
+  DerivedPorts,
+  CompositeModuleLookup,
+} from './dag/index.js';

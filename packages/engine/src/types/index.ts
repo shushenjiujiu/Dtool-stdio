@@ -15,6 +15,11 @@ export type {
   TemplateDef,
 } from './template.js';
 
+// ── Composite module types ──
+export type {
+  CompositeModule,
+} from './composite.js';
+
 // ── Pipeline types (post-resolution, execution-ready) ──
 export type {
   ResolvedStepDef,
@@ -32,12 +37,11 @@ export type {
 
 // ── Module types ──
 export type {
-  PortDirection,
   PortDef,
   ConfigFieldType,
   ConfigFieldOption,
   ConfigFieldDef,
-  ModuleComplexity,
+  ModuleMeta,
   ModuleDef,
   ModuleContext,
   ModuleHandler,
@@ -49,5 +53,13 @@ export type {
   ResolutionContext,
   ResolvedConfig,
   VariableReference,
-  ResolutionError,
 } from './variable.js';
+
+// ── DAG types ──
+export type {
+  PortType,
+  Wire,
+  ExecutionNode,
+  ExecutionGraph,
+} from './dag.js';
+export { canConnect } from './dag.js';

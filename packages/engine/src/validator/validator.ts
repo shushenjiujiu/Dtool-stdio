@@ -85,13 +85,15 @@ export function validateStructure(template: unknown): ValidationResult {
 
     const value = obj[rule.field];
 
-    if (rule.type === 'array' && !Array.isArray(value)) {
-      errors.push({
-        code: 'struct/invalid-type',
-        message: `"${rule.field}" must be an array`,
-        severity: 'error',
-        path: `/${rule.field}`,
-      });
+    if (rule.type === 'array') {
+      if (value !== undefined && !Array.isArray(value)) {
+        errors.push({
+          code: 'struct/invalid-type',
+          message: `"${rule.field}" must be an array`,
+          severity: 'error',
+          path: `/${rule.field}`,
+        });
+      }
     } else if (value !== undefined && typeof value !== rule.type) {
       errors.push({
         code: 'struct/invalid-type',
