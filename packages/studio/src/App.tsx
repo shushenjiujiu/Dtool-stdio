@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { TemplateList } from './pages/TemplateList.js';
 import { TemplateRun } from './pages/TemplateRun.js';
 import { Editor } from './pages/Editor.js';
+import { CanvasEditor } from './pages/CanvasEditor.js';
 
-type Page = 'templates' | 'run' | 'editor';
+type Page = 'templates' | 'run' | 'editor' | 'canvas';
 
 interface NavState {
   page: Page;
@@ -11,7 +12,8 @@ interface NavState {
 }
 
 export function App() {
-  const [nav, setNav] = useState<NavState>({ page: 'templates' });
+  // Default page is now 'editor' — empty module is the starting point
+  const [nav, setNav] = useState<NavState>({ page: 'editor' });
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -27,16 +29,22 @@ export function App() {
       }}>
         <strong style={{ fontSize: 18, marginRight: 8 }}>dtool Studio</strong>
         <button
-          onClick={() => setNav({ page: 'templates' })}
-          style={navBtnStyle(nav.page === 'templates')}
-        >
-          📋 模板
-        </button>
-        <button
           onClick={() => setNav({ page: 'editor' })}
           style={navBtnStyle(nav.page === 'editor')}
         >
-          ✏️ 编辑器
+          📋 管道
+        </button>
+        <button
+          onClick={() => setNav({ page: 'canvas' })}
+          style={navBtnStyle(nav.page === 'canvas')}
+        >
+          🎨 画布
+        </button>
+        <button
+          onClick={() => setNav({ page: 'templates' })}
+          style={navBtnStyle(nav.page === 'templates')}
+        >
+          📋 模板库
         </button>
 
         <div style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.6 }}>
@@ -46,6 +54,8 @@ export function App() {
 
       {/* Page content */}
       <div style={{ padding: 24 }}>
+        {nav.page === 'editor' && <Editor />}
+        {nav.page === 'canvas' && <CanvasEditor />}
         {nav.page === 'templates' && (
           <TemplateList
             onSelect={(id) => setNav({ page: 'run', templateId: id })}
@@ -57,7 +67,6 @@ export function App() {
             onBack={() => setNav({ page: 'templates' })}
           />
         )}
-        {nav.page === 'editor' && <Editor />}
       </div>
     </div>
   );

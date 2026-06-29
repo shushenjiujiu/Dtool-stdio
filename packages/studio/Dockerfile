@@ -11,8 +11,8 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# 复制 monorepo 依赖声明
-COPY pnpm-workspace.yaml package.json ./
+# 复制 monorepo 依赖声明和基础配置
+COPY pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY packages/studio/package.json packages/studio/
 
 RUN pnpm install --no-frozen-lockfile
@@ -29,6 +29,8 @@ RUN cd packages/studio && pnpm build
 # ── Stage 2: Nginx ──
 FROM nginx:alpine
 
+RUN apk add --no-cache curl
+
 # 复制 nginx 配置（从 monorepo 根下的 docker/ 目录）
 COPY docker/nginx-frontend.conf /etc/nginx/conf.d/default.conf
 
@@ -37,7 +39,7 @@ COPY --from=builder /app/packages/studio/dist /usr/share/nginx/html
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=5s \
-  CMD wget -qO- http://localhost:80/ || exit 1
+HEALTHCHECK --interval=15s --timeout=3s --retries=2 --start-period=5s \
+  CMD curl -sf http://localhost:80/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -37,8 +37,9 @@ interface ValidateResponse {
 
 export async function fetchTemplates(): Promise<TemplateMeta[]> {
   const res = await fetch(`${API_BASE}/templates`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
   const data: TemplateListResponse = await res.json();
-  return data.templates;
+  return data.templates ?? [];
 }
 
 export async function fetchTemplate(id: string): Promise<TemplateDetail> {
@@ -54,5 +55,18 @@ export async function validateTemplate(yaml: string): Promise<ValidateResponse> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ yaml }),
   });
+  return res.json();
+}
+
+export async function saveTemplate(yaml: string): Promise<{ ok: boolean; id: string; error?: string }> {
+  const res = await fetch(`${API_BASE}/templates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ yaml }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    return { ok: false, id: '', error: (err as { error?: string }).error || `HTTP ${res.status}` };
+  }
   return res.json();
 }
