@@ -1,0 +1,60 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "SQL 注入检测"
+description: "检测输入文本中是否包含 SQL 注释绕过和 Null 字节注入特征，支持编码预处理"
+category: "安全检测"
+tags: ["安全", "SQL", "检测"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "检测文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入需要检测的文本"
+
+  - id: encode_before_check
+    label: "编码预处理"
+    type: "select"
+    default: "none"
+    options:
+      - label: "不编码，直接检测"
+        value: "none"
+      - label: "先 URL 编码"
+        value: "url_encode"
+      - label: "先 Base64 编码"
+        value: "base64_encode"
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取输入"
+      config:
+        text: "$param.input_text"
+      export: raw
+
+    - id: pre_encode
+      module: "$param.encode_before_check"
+      label: "预处理编码"
+      config: {}
+
+    - id: check_sql
+      module: "sql_comment"
+      label: "SQL 注释检测"
+      config: {}
+
+    - id: check_null
+      module: "null_byte_inject"
+      label: "Null 字节检测"
+      config: {}
+
+    - id: show_result
+      module: "output"
+      label: "检测结果"
+      config:
+        source: "$steps.check_null"

@@ -1,0 +1,64 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "URL 批量编码"
+description: "对输入的文本内容执行多次编码转换，支持 Base64、URL、Hex 等编码方式"
+category: "编码/解码"
+tags: ["编码", "批量", "URL"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入要编码的内容，例如：https://example.com/path?id=1"
+
+  - id: encode_type
+    label: "编码方式"
+    type: "select"
+    default: "base64_encode"
+    options:
+      - label: "Base64 编码"
+        value: "base64_encode"
+      - label: "URL 编码"
+        value: "url_encode"
+      - label: "Hex 编码"
+        value: "hex"
+
+  - id: repeat_count
+    label: "循环次数"
+    type: "number"
+    default: 3
+    min: 1
+    max: 100
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取输入"
+      config:
+        text: "$param.input_text"
+      export: raw
+
+    - id: encode_loop
+      module: "loop"
+      label: "编码循环"
+      config:
+        count: "$param.repeat_count"
+      export: encoded
+      substeps:
+        - id: do_encode
+          module: "$param.encode_type"
+          label: "执行编码"
+          config: {}
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.encode_loop"

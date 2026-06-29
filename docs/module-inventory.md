@@ -16,7 +16,7 @@
 | `case_convert` | 大小写转换 | transformation | ✅ | ✅ 纯函数 | 支持多种模式 |
 | `case_obfuscate` | 大小写混淆 | injection | ✅ | ✅ 纯函数 | 用于 WAF 绕过 |
 | `charcode_encode` | 字符编码转换 | encoding | ✅ | ✅ 纯函数 | 十进制/十六进制 |
-| `combine` | 组合 | transformation | ✅ | ✅ 纯函数 | 模板拼接多变量 |
+| `combine` | 组合 | transformation | ✅ | ✅ 纯函数 | 拼接多个变量 |
 | `constant` | 常量 | transformation | ✅ | ✅ 纯函数 | 注入固定值 |
 | `form_url_encode` | 表单 URL 编码 | wrapping | ✅ | ✅ 纯函数 | key:value → URL 编码 |
 | `hex_decode` | Hex 解码 | encoding | ✅ | ✅ 纯函数 | — |
@@ -83,11 +83,11 @@
 
 ### Studio 首批需要新建的模块（不在旧 dtool 中）
 
-| 模块 ID | 用途 | 模板 | 优先级 |
-|---------|------|------|--------|
-| `json-format` | JSON 格式化/美化 | JSON 格式化模板 | P1 |
-| `string-replace` | 字符串搜索替换 | 字符串替换模板 | P1 |
-| `url_decode` | URL 解码 | 未来解编码类模板 | P2 |
+| 模块 ID | 用途 | 关联模块定义 | 优先级 |
+|---------|------|-------------|--------|
+| `json-format` | JSON 格式化/美化 | json-formatter.yaml | P1 |
+| `string-replace` | 字符串搜索替换 | string-replace.yaml | P1 |
+| `url_decode` | URL 解码 | 待建 | P2 |
 | `base64_encode`/`base64_decode` | 旧 dtool 已有，直接移植 | — | P0 |
 | `loop`（特殊模块） | 循环容器 | — | P0（引擎内置） |
 
@@ -98,7 +98,7 @@
 旧 dtool 模块 ID 使用 **snake_case**（如 `base64_encode`、`html_entity_decode`）。
 建议 dtool Studio 沿用此规范，保持一致性。
 
-涉及本文档的模板中使用的模块 ID，已按此规范修正。如有异议可另行统一命名。
+涉及本文档的模块定义中使用的模块 ID，已按此规范修正。如有异议可另行统一命名。
 
 ---
 

@@ -1,0 +1,36 @@
+# ============================================
+# dtool Studio 测试模板 — 双编码链
+#
+# 验证：DAG 引擎自动连线推导。
+# 输入经过 Base64 编码 → URL 编码，
+# 引擎通过端口类型匹配自动连接两个步骤。
+# ============================================
+version: "0.1"
+name: "双编码链测试"
+description: "Base64 编码后接 URL 编码，验证 DAG 引擎自动端口连线"
+category: "编码/解码"
+tags: ["测试", "DAG", "自动连线"]
+author: "知更鸟"
+created: "2026-06-26"
+
+# ── 验证状态：📊 待验证 ──
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入要验证的文本（建议：hello world）"
+
+flow:
+  steps:
+    - id: b64
+      module: "base64_encode"
+      label: "① Base64 编码"
+      config:
+        _input: "$param.input_text"
+
+    - id: url
+      module: "url_encode"
+      label: "② URL 编码"
+      config: {}

@@ -1,0 +1,63 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "字符串替换"
+description: "在输入文本中搜索并替换指定字符串，支持全局替换和首次替换模式"
+category: "工具"
+tags: ["替换", "字符串"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入需要替换的原始文本"
+
+  - id: search_term
+    label: "搜索内容"
+    type: "string"
+    required: true
+    placeholder: "要查找的字符串"
+
+  - id: replace_term
+    label: "替换为"
+    type: "string"
+    required: true
+    placeholder: "替换后的内容"
+
+  - id: replace_mode
+    label: "替换模式"
+    type: "select"
+    default: "global"
+    options:
+      - label: "全部替换"
+        value: "global"
+      - label: "仅替换首次"
+        value: "first"
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取输入"
+      config:
+        text: "$param.input_text"
+      export: raw
+
+    - id: do_replace
+      module: "string-replace"
+      label: "执行替换"
+      config:
+        search: "$param.search_term"
+        replace: "$param.replace_term"
+        mode: "$param.replace_mode"
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.do_replace"

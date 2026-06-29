@@ -1,0 +1,50 @@
+# ============================================
+# dtool Studio 测试模板 — 数据管道（复合模块基础）
+#
+# 验证：复合模块（封装）功能。
+# 两个原子步骤（字符串反转 + 大小写转换）封装成一个复合模块，
+# 由外层引用并串联后续步骤。
+#
+# 执行路径：
+#   外层: constant("hello") → simple-transform
+#                 ↓ 复合模块内部展开
+#         string_reverse("hello") → case_convert("olleh", upper)
+#         = "OLLEH"
+#                 ↓ 回到外层
+#         html_entity_encode("OLLEH") = 最终结果
+# ============================================
+version: "0.1"
+name: "数据管道测试"
+description: "字符串反转 + 大小写转换封装为复合模块，验证模块嵌套功能"
+category: "转换"
+tags: ["测试", "封装", "复合模块", "嵌套"]
+author: "知更鸟"
+created: "2026-06-26"
+
+# ── 验证状态：📊 待验证 ──
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "string"
+    required: true
+    default: "hello world"
+
+flow:
+  steps:
+    - id: reverse
+      module: "string_reverse"
+      label: "① 字符串反转"
+      config:
+        _input: "$param.input_text"
+
+    - id: convert_case
+      module: "case_convert"
+      label: "② 转大写"
+      config:
+        mode: "upper"
+
+    - id: wrap_html
+      module: "html_entity_encode"
+      label: "③ HTML 实体编码"
+      config: {}

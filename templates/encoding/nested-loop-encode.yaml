@@ -1,0 +1,67 @@
+# ============================================
+# dtool Studio 测试模板 — 嵌套循环编码
+#
+# 验证：loop 容器 + substeps 递归执行。
+# 外层循环 base64_encode → 内层在每次迭代中
+# 先 url_encode 再 hex_encode，验证多级嵌套。
+# ============================================
+version: "0.1"
+name: "嵌套循环编码测试"
+description: "外层循环 Base64 编码，内层嵌套 URL → Hex 编码链，验证 substeps 递归"
+category: "编码/解码"
+tags: ["测试", "嵌套", "循环", "substeps"]
+author: "知更鸟"
+created: "2026-06-26"
+
+# ── 验证状态：📊 待验证 ──
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入要验证的文本（建议：test）"
+
+  - id: outer_count
+    label: "外层循环次数"
+    type: "number"
+    default: 3
+    min: 1
+    max: 10
+
+  - id: inner_count
+    label: "内层循环次数"
+    type: "number"
+    default: 2
+    min: 1
+    max: 5
+
+flow:
+  steps:
+    - id: outer_loop
+      module: "loop"
+      label: "外层循环（Base64）"
+      config:
+        count: "$param.outer_count"
+      substeps:
+        - id: do_base64
+          module: "base64_encode"
+          label: "Base64 编码"
+          config:
+            _input: "$param.input_text"
+
+        - id: inner_loop
+          module: "loop"
+          label: "内层循环（URL+Hex）"
+          config:
+            count: "$param.inner_count"
+          substeps:
+            - id: do_url
+              module: "url_encode"
+              label: "URL 编码"
+              config: {}
+
+            - id: do_hex
+              module: "hex_encode"
+              label: "Hex 编码"
+              config: {}

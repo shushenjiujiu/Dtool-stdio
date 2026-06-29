@@ -1,0 +1,48 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "Base64 编解码"
+description: "对输入内容执行 Base64 编码或解码"
+category: "编码/解码"
+tags: ["编码", "Base64"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入要编码或解码的文本"
+
+  - id: direction
+    label: "操作方向"
+    type: "select"
+    default: "base64_encode"
+    options:
+      - label: "编码（文本 → Base64）"
+        value: "base64_encode"
+      - label: "解码（Base64 → 文本）"
+        value: "base64_decode"
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取输入"
+      config:
+        text: "$param.input_text"
+      export: raw
+
+    - id: convert
+      module: "$param.direction"
+      label: "执行转换"
+      config: {}
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.convert"

@@ -23,6 +23,7 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
+      - MODULES_DIR=/app/modules
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - MAX_LOOP_ITERATIONS=${MAX_LOOP_ITERATIONS:-10000}
     volumes:

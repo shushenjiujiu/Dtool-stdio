@@ -1,0 +1,43 @@
+# ============================================
+# dtool Studio 测试模板 — SQL 注入 + 编码链
+#
+# 验证：安全模块与编码模块串联。
+# SQL 注释注入 → Base64 编码 → URL 编码，
+# 覆盖 injection + encoding 跨 category 连通性。
+# ============================================
+version: "0.1"
+name: "SQL 注入 + 编码链测试"
+description: "SQL 注释注入后接 Base64 + URL 编码，验证跨 category DAG 连线"
+category: "安全检测"
+tags: ["测试", "安全", "编码", "跨类别"]
+author: "知更鸟"
+created: "2026-06-26"
+
+# ── 验证状态：📊 待验证 ──
+
+params:
+  - id: sql_payload
+    label: "SQL Payload"
+    type: "textarea"
+    required: true
+    default: "SELECT * FROM users WHERE id=1 UNION SELECT password FROM admin"
+    placeholder: "输入 SQL 语句"
+
+flow:
+  steps:
+    - id: inject_comment
+      module: "sql_comment"
+      label: "① SQL 注释注入"
+      config:
+        _input: "$param.sql_payload"
+        comment: "/**/"
+
+    - id: encode_b64
+      module: "base64_encode"
+      label: "② Base64 编码"
+      config: {}
+
+    - id: encode_url
+      module: "url_encode"
+      label: "③ URL 编码"
+      config: {}

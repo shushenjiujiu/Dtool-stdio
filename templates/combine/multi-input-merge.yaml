@@ -1,0 +1,50 @@
+# ============================================
+# dtool Studio 测试模板 — 多输入合并
+#
+# 验证：combine 模块的多输入端口连线。
+# 两个独立数据流（Base64 编码 + Hex 编码）汇入 combine
+# 模块的多输入端口，按模板拼接输出。
+# 覆盖 DAG 分支→合并（钻石型）拓扑。
+# ============================================
+version: "0.1"
+name: "多输入合并测试"
+description: "两个编码分支（Base64 + Hex）汇入 combine 多端口拼接，验证 DAG 钻石拓扑"
+category: "合并/拆分"
+tags: ["测试", "合并", "多输入", "钻石DAG"]
+author: "知更鸟"
+created: "2026-06-26"
+
+# ── 验证状态：📊 待验证 ──
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    default: "hello"
+
+  - id: template
+    label: "拼接模板"
+    type: "string"
+    default: "B64=[[input]] | HEX=[[var_a]]"
+    placeholder: "{{input}} 为主输入，{{var_a}} 为分支输入"
+
+flow:
+  steps:
+    - id: encode_b64
+      module: "base64_encode"
+      label: "分支 A：Base64 编码"
+      config:
+        _input: "$param.input_text"
+
+    - id: encode_hex
+      module: "hex_encode"
+      label: "分支 B：Hex 编码"
+      config:
+        _input: "$param.input_text"
+
+    - id: merge
+      module: "combine"
+      label: "合并结果"
+      config:
+        template: "$param.template"

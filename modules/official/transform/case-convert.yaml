@@ -1,0 +1,51 @@
+# ============================================
+# dtool Studio 模板
+# Schema v0.1
+# ============================================
+version: "0.1"
+name: "大小写转换"
+description: "将输入文本转换为小写、大写或首字母大写格式"
+category: "格式转换"
+tags: ["转换", "大小写"]
+author: "知更鸟"
+created: "2026-06-26"
+
+params:
+  - id: input_text
+    label: "输入文本"
+    type: "textarea"
+    required: true
+    placeholder: "输入要转换大小写的文本"
+
+  - id: case_mode
+    label: "转换模式"
+    type: "select"
+    default: "uppercase"
+    options:
+      - label: "全部大写"
+        value: "uppercase"
+      - label: "全部小写"
+        value: "lowercase"
+      - label: "首字母大写"
+        value: "capitalize"
+
+flow:
+  steps:
+    - id: read_input
+      module: "input"
+      label: "读取输入"
+      config:
+        text: "$param.input_text"
+      export: raw
+
+    - id: convert_case
+      module: "case_convert"
+      label: "大小写转换"
+      config:
+        mode: "$param.case_mode"
+
+    - id: show_result
+      module: "output"
+      label: "显示结果"
+      config:
+        source: "$steps.convert_case"
