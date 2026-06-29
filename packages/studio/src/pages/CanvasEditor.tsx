@@ -186,6 +186,7 @@ export function CanvasEditor() {
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeIds([edge.id]);
     setSelectedNodeIds([]);
+    setContextMenu(null);
   }, []);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
@@ -216,6 +217,14 @@ export function CanvasEditor() {
       setSelectedNodeIds([]);
     }
   }, [selectedEdgeIds, selectedNodeIds, setNodes, setEdges, pushUndo]);
+
+  // Edge right-click → delete directly
+  const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    pushUndo();
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    setSelectedEdgeIds([]);
+  }, [setEdges, pushUndo]);
 
   // Enhanced edges with hover/select styling
   const displayEdges = useMemo(() => edges.map((e) => ({
@@ -1088,6 +1097,7 @@ export function CanvasEditor() {
             onNodeDoubleClick={handleNodeDoubleClick}
             onNodeContextMenu={onNodeContextMenu}
             onEdgeClick={onEdgeClick}
+            onEdgeContextMenu={onEdgeContextMenu}
             onEdgeMouseEnter={(_e, edge) => setHoveredEdgeId(edge.id)}
             onEdgeMouseLeave={() => setHoveredEdgeId(null)}
             onBeforeDelete={async () => { pushUndo(); return true; }}
