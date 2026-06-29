@@ -29,8 +29,6 @@ RUN cd packages/studio && pnpm build
 # ── Stage 2: Nginx ──
 FROM nginx:alpine
 
-RUN apk add --no-cache curl
-
 # 复制 nginx 配置（从 monorepo 根下的 docker/ 目录）
 COPY docker/nginx-frontend.conf /etc/nginx/conf.d/default.conf
 
