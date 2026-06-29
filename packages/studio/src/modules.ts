@@ -10,6 +10,12 @@ export interface ModuleCatalogItem {
   name: string;
   category: string;
   description: string;
+  /** No input handle — node generates its own data (e.g. 'input', 'constant') */
+  noInput?: boolean;
+  /** Multiple input handles — node can accept multiple connections (e.g. 'combine') */
+  multiInput?: boolean;
+  /** No output handle — terminal node (e.g. 'output') */
+  noOutput?: boolean;
   configFields?: Array<{
     key: string;
     label: string;
@@ -21,9 +27,9 @@ export interface ModuleCatalogItem {
 
 export const ATOMIC_MODULES: ModuleCatalogItem[] = [
   // ── I/O ──
-  { id: 'input', name: '输入', category: 'io', description: '接收外部输入数据，作为管道的起点',
+  { id: 'input', name: '输入', category: 'io', description: '接收外部输入数据，作为管道的起点', noInput: true,
     configFields: [{ key: 'text', label: '输入文本', type: 'string' }] },
-  { id: 'output', name: '输出', category: 'io', description: '展示管道最终结果',
+  { id: 'output', name: '输出', category: 'io', description: '展示管道最终结果', noOutput: true,
     configFields: [{ key: 'source', label: '数据源', type: 'string' }] },
 
   // ── Encoding ──
@@ -76,9 +82,9 @@ export const ATOMIC_MODULES: ModuleCatalogItem[] = [
     ]}]},
   { id: 'jwt_decode', name: 'JWT 解码', category: 'transformation', description: '解码 JWT Payload（不验签）',
     configFields: [{ key: 'showHeader', label: '显示 Header', type: 'boolean', default: false }]},
-  { id: 'combine', name: '组合', category: 'transformation', description: '按模板拼接多个输入',
+  { id: 'combine', name: '组合', category: 'transformation', description: '按模板拼接多个输入', multiInput: true,
     configFields: [{ key: 'template', label: '模板', type: 'string', default: '{{input}}' }]},
-  { id: 'constant', name: '常量', category: 'transformation', description: '输出指定的常量值',
+  { id: 'constant', name: '常量', category: 'transformation', description: '输出指定的常量值', noInput: true,
     configFields: [{ key: 'value', label: '常量值', type: 'string' }]},
 
   // ── Wrapping ──

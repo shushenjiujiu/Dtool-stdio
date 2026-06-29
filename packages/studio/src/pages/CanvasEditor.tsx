@@ -226,6 +226,49 @@ export function CanvasEditor() {
     setSelectedEdgeIds([]);
   }, [setEdges, pushUndo]);
 
+  // ── Multi-input: add port handler ──
+  const addInputPort = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.map((n) => {
+      if (n.id !== nodeId) return n;
+      const data = n.data as ModuleNodeData;
+      const count = data.inputs.length + 1;
+      return {
+        ...n,
+        data: {
+          ...data,
+          inputs: [...data.inputs, { id: `in_${count}`, label: `输入 ${count}`, type: 'string' }],
+        },
+      };
+    }));
+  }, [setNodes]);
+
+  // ── Parameter panel ──
+  const paramNode = useMemo(() =>
+    selectedNodeIds.length === 1 ? nodes.find((n) => n.id === selectedNodeIds[0]) ?? null : null,
+    [selectedNodeIds, nodes],
+  );
+  const [paramPanelOpen, setParamPanelOpen] = useState(false);
+  React.useEffect(() => {
+    if (paramNode && paramNode.type === 'moduleNode') {
+      const m = (paramNode.data as ModuleNodeData).module;
+      if (m.configFields && m.configFields.length > 0) setParamPanelOpen(true);
+      else setParamPanelOpen(false);
+    } else {
+      setParamPanelOpen(false);
+    }
+  }, [paramNode]);
+
+  const handleParamChange = useCallback((nodeId: string, key: string, value: unknown) => {
+    setNodes((nds) => nds.map((n) => {
+      if (n.id !== nodeId) return n;
+      const data = n.data as ModuleNodeData;
+      return {
+        ...n,
+        data: { ...data, params: { ...(data.params || {}), [key]: value } },
+      };
+    }));
+  }, [setNodes]);
+
   // Enhanced edges with hover/select styling
   const displayEdges = useMemo(() => edges.map((e) => ({
     ...e,
@@ -238,7 +281,9 @@ export function CanvasEditor() {
         : (e.style?.strokeWidth || 2),
     },
     markerEnd: {
-      ...(e.markerEnd as any || {}),
+      type: MarkerType.ArrowClosed,
+      width: 20,
+      height: 20,
       color: selectedEdgeIds.includes(e.id) ? '#ef5350'
         : hoveredEdgeId === e.id ? '#ab47bc'
         : '#6a4c93',
@@ -290,15 +335,39 @@ export function CanvasEditor() {
 
   // ── Connection ──
   const onConnect = useCallback((connection: Connection) => {
-    // Rule 1: One input port → one source only (prevent multi-input clash)
-    const existingEdge = edges.find(
-      (e) => e.target === connection.target && e.targetHandle === connection.targetHandle,
-    );
-    if (existingEdge) return;
-
-    // Rule 2: Type check
-    const srcNode = nodes.find((n) => n.id === connection.source);
+    // Rule 1: One input port → one source only (unless multiInput node)
     const tgtNode = nodes.find((n) => n.id === connection.target);
+    if (tgtNode) {
+      const tgtModule = (tgtNode.data as any).module;
+      if (!tgtModule?.multiInput) {
+        const existingEdge = edges.find(
+          (e) => e.target === connection.target && e.targetHandle === connection.targetHandle,
+        );
+        if (existingEdge) return;
+      }
+    }
+
+    // Rule 2: Cycle detection — reject connections that would create a loop
+    if (connection.source === connection.target) return; // self-loop
+    // DFS: can we reach source from target?
+    const visited = new Set<string>();
+    const stack = [connection.target];
+    while (stack.length > 0) {
+      const nodeId = stack.pop()!;
+      if (nodeId === connection.source) return; // cycle detected
+      if (visited.has(nodeId)) continue;
+      visited.add(nodeId);
+      for (const e of edges) {
+        if (e.source === nodeId) stack.push(e.target);
+      }
+      // Also check the new connection itself
+      if (nodeId === connection.target && connection.source) {
+        // source → target is forward; check target → source (reverse)
+      }
+    }
+
+    // Rule 3: Type check
+    const srcNode = nodes.find((n) => n.id === connection.source);
     if (srcNode && tgtNode) {
       const srcData = srcNode.data as any;
       const tgtData = tgtNode.data as any;
@@ -387,8 +456,10 @@ export function CanvasEditor() {
       data: {
         module: mod,
         label: mod.name,
-        inputs: [{ id: 'data', label: 'data', type: 'string' }],
-        outputs: [{ id: 'data', label: 'data', type: 'string' }],
+        inputs: mod.noInput ? [] : [{ id: 'data', label: 'data', type: 'string' }],
+        outputs: mod.noOutput ? [] : [{ id: 'data', label: 'data', type: 'string' }],
+        params: {},
+        onAddInput: addInputPort,
       } satisfies ModuleNodeData,
     };
 
@@ -844,6 +915,23 @@ export function CanvasEditor() {
   // ── Render ──
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 100px)', gap: 0 }}>
+      {/* SVG arrow marker（reusable） */}
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <marker id="arrowhead" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6a4c93" />
+          </marker>
+          <marker id="arrowhead-sel" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#ef5350" />
+          </marker>
+          <marker id="arrowhead-hover" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#ab47bc" />
+          </marker>
+        </defs>
+      </svg>
       {/* ── Sidebar ── */}
       {sidebarOpen && (
         <aside style={{
@@ -1036,6 +1124,7 @@ export function CanvasEditor() {
             )}
             <span style={{ color: '#aaa' }}>
               {nodes.length} 节点 · {edges.length} 连线
+              <span style={{ fontSize: 10, color: '#bbb', marginLeft: 8 }}>🚫 无环</span>
             </span>
             {selectedEdgeIds.length > 0 && (
               <span style={{ color: '#ef5350', fontSize: 11 }}>
@@ -1084,7 +1173,8 @@ export function CanvasEditor() {
         </div>
 
         {/* React Flow canvas */}
-        <div style={{ flex: 1, position: 'relative' }} ref={reactFlowWrapper}>
+        <div style={{ flex: 1, position: 'relative', display: 'flex' }} ref={reactFlowWrapper}>
+          <div style={{ flex: 1 }}>
           <ReactFlow
             nodes={nodes}
             edges={displayEdges}
@@ -1119,6 +1209,74 @@ export function CanvasEditor() {
             <Controls />
             <MiniMap style={{ width: 150, height: 100 }} position="bottom-left" />
           </ReactFlow>
+          </div>
+
+          {/* ── Parameter panel (right sidebar) ── */}
+          {paramPanelOpen && paramNode && paramNode.type === 'moduleNode' && (() => {
+            const pData = paramNode.data as ModuleNodeData;
+            const fields = pData.module.configFields || [];
+            return (
+              <div style={{
+                width: 220, flexShrink: 0, background: '#fafafa',
+                borderLeft: '1px solid #e0e0e0', overflowY: 'auto',
+                padding: 12, fontSize: 12,
+              }}>
+                <div style={{
+                  fontWeight: 600, color: '#6a4c93', marginBottom: 10,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span>⚙ {pData.label}</span>
+                  <button
+                    onClick={() => setParamPanelOpen(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 14 }}
+                  >✕</button>
+                </div>
+                {fields.length === 0 && (
+                  <div style={{ color: '#999', fontStyle: 'italic' }}>无配置参数</div>
+                )}
+                {fields.map((f) => (
+                  <div key={f.key} style={{ marginBottom: 10 }}>
+                    <label style={{ display: 'block', fontSize: 10, color: '#666', marginBottom: 3 }}>
+                      {f.label}
+                    </label>
+                    {f.type === 'boolean' ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={!!(pData.params?.[f.key] ?? f.default)}
+                          onChange={(e) => handleParamChange(paramNode.id, f.key, e.target.checked)}
+                        />
+                      </label>
+                    ) : f.type === 'select' && f.options ? (
+                      <select
+                        value={String(pData.params?.[f.key] ?? f.default ?? '')}
+                        onChange={(e) => handleParamChange(paramNode.id, f.key, e.target.value)}
+                        style={{
+                          width: '100%', padding: '4px 6px', borderRadius: 4,
+                          border: '1px solid #ddd', fontSize: 11, boxSizing: 'border-box',
+                        }}
+                      >
+                        {f.options.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={String(pData.params?.[f.key] ?? f.default ?? '')}
+                        onChange={(e) => handleParamChange(paramNode.id, f.key, e.target.value)}
+                        placeholder={f.default ? String(f.default) : ''}
+                        style={{
+                          width: '100%', padding: '4px 6px', borderRadius: 4,
+                          border: '1px solid #ddd', fontSize: 11, boxSizing: 'border-box',
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Sidebar toggle */}
           {!sidebarOpen && (

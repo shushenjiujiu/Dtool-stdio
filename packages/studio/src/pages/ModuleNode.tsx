@@ -2,7 +2,12 @@
  * ModuleNode — React Flow custom node representing a module on the 2D canvas.
  *
  * Visual: rounded rectangle with category color strip, name, description,
- * input handle (left) and output handle (right).
+ * conditional input handle (left) and output handle (right) based on I/O type.
+ *
+ * I/O types:
+ *   noInput    → hides input handles (data-generating nodes)
+ *   multiInput → shows multiple input handles + add button
+ *   noOutput   → hides output handles (terminal nodes)
  */
 
 import React, { memo } from 'react';
@@ -22,6 +27,10 @@ export interface ModuleNodeData extends Record<string, unknown> {
   label: string;
   inputs: PortDef[];
   outputs: PortDef[];
+  /** Converted pipeline config values (key → value) */
+  params?: Record<string, unknown>;
+  /** Callback: request adding a new input port (for multi-input nodes) */
+  onAddInput?: (nodeId: string) => void;
 }
 
 // ── Category colors ────────────────────────────────────────────────────────
@@ -36,15 +45,42 @@ const CAT_COLORS: Record<string, { bg: string; border: string; strip: string }> 
 
 const DEFAULT_COLORS = { bg: '#f5f5f5', border: '#ccc', strip: '#999' };
 
+// ── Handle style helpers ───────────────────────────────────────────────────
+
+const sourceHandleStyle = (color: string): React.CSSProperties => ({
+  width: 10, height: 10,
+  background: color,
+  border: `2px solid ${color}`,
+  borderRadius: 5,
+});
+
+const targetHandleStyle = (color: string): React.CSSProperties => ({
+  width: 10, height: 10,
+  background: '#fff',
+  border: `2px solid ${color}`,
+  borderRadius: 5,
+});
+
+const disabledHandleStyle: React.CSSProperties = {
+  width: 6, height: 6,
+  background: '#ddd',
+  border: '1px solid #ccc',
+  borderRadius: 3,
+  cursor: 'not-allowed',
+};
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 type ModuleNodeType = Node<ModuleNodeData>;
 
-export const ModuleNode = memo(({ data, selected }: NodeProps<ModuleNodeType>) => {
+export const ModuleNode = memo(({ id, data, selected }: NodeProps<ModuleNodeType>) => {
   const nodeData = data;
   const mod = nodeData.module;
   const colors = CAT_COLORS[mod.category] || DEFAULT_COLORS;
   const execStatus = nodeData.execStatus as string | undefined;
+  const hasInputs = !mod.noInput;
+  const hasOutputs = !mod.noOutput;
+  const isMultiInput = !!mod.multiInput;
 
   return (
     <div
@@ -61,41 +97,46 @@ export const ModuleNode = memo(({ data, selected }: NodeProps<ModuleNodeType>) =
         boxShadow: selected
           ? '0 4px 16px rgba(106,76,147,0.25)'
           : '0 1px 3px rgba(0,0,0,0.08)',
-        minWidth: 160,
+        minWidth: 140,
         fontSize: 12,
         transition: 'box-shadow 0.15s, border-color 0.15s',
       }}
     >
       <NodeResizer
-        minWidth={140}
-        minHeight={60}
+        minWidth={120}
+        minHeight={50}
         isVisible={selected}
         lineStyle={{ borderColor: '#6a4c93' }}
         handleStyle={{ width: 8, height: 8, background: '#6a4c93', border: '2px solid #fff' }}
       />
+
       {/* ── Header ── */}
       <div style={{
         padding: '6px 10px 4px',
-        display: 'flex', alignItems: 'center', gap: 6,
+        display: 'flex', alignItems: 'center', gap: 4,
       }}>
         {/* IO badge */}
         <span style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 18, height: 18, borderRadius: 9,
+          width: 16, height: 16, borderRadius: 8,
           background: colors.strip, color: '#fff',
-          fontSize: 9, fontWeight: 700,
+          fontSize: 8, fontWeight: 700,
+          flexShrink: 0,
         }}>
-          {mod.category === 'io' ? (mod.id === 'input' ? 'IN' : 'OUT')
-            : mod.category.slice(0, 1).toUpperCase()}
+          {mod.noInput ? 'S' : mod.noOutput ? 'T' : mod.multiInput ? 'M' : mod.category.slice(0, 1).toUpperCase()}
         </span>
-        <span style={{ fontWeight: 600, color: '#333', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{
+          fontWeight: 600, color: '#333', flex: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontSize: 11,
+        }}>
           {nodeData.label || mod.name}
         </span>
+        {mod.noInput && <span style={{ fontSize: 9, color: colors.strip, fontWeight: 500 }}>源</span>}
+        {mod.noOutput && <span style={{ fontSize: 9, color: '#999', fontWeight: 500 }}>终</span>}
+        {mod.multiInput && <span style={{ fontSize: 9, color: '#ff9800', fontWeight: 500 }}>多入</span>}
         {execStatus === 'running' && (
-          <span style={{
-            width: 8, height: 8, borderRadius: 4,
-            background: '#f59e0b', animation: 'pulse 1s infinite',
-          }} />
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: '#f59e0b', animation: 'pulse 1s infinite' }} />
         )}
         {execStatus === 'completed' && <span style={{ fontSize: 10, color: '#66bb6a' }}>✓</span>}
         {execStatus === 'error' && <span style={{ fontSize: 10, color: '#ef5350' }}>✗</span>}
@@ -107,64 +148,72 @@ export const ModuleNode = memo(({ data, selected }: NodeProps<ModuleNodeType>) =
       {/* ── Ports row ── */}
       <div style={{
         padding: '4px 10px 6px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        position: 'relative',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
+        position: 'relative', minHeight: 20,
       }}>
         {/* Input side */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {nodeData.inputs.map((port, i) => (
-            <div key={port.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'center' }}>
+          {!hasInputs && (
+            <span style={{ fontSize: 9, color: '#ddd', fontStyle: 'italic' }}>自生成</span>
+          )}
+          {hasInputs && nodeData.inputs.map((port, i) => (
+            <div key={port.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <Handle
                 type="target"
                 position={Position.Left}
                 id={port.id}
-                style={{
-                  position: 'relative',
-                  left: 0, transform: 'none',
-                  width: 8, height: 8,
-                  background: '#fff',
-                  border: `2px solid ${colors.strip}`,
-                  borderRadius: 4,
-                }}
+                style={targetHandleStyle(colors.strip)}
               />
-              <span style={{ fontSize: 10, color: '#888' }}>{port.label}</span>
+              {nodeData.inputs.length > 1 && (
+                <span style={{ fontSize: 9, color: '#888' }}>{port.label}</span>
+              )}
             </div>
           ))}
-          {nodeData.inputs.length === 0 && (
-            <span style={{ fontSize: 10, color: '#ccc' }}>—</span>
+          {isMultiInput && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                nodeData.onAddInput?.(id);
+              }}
+              title="添加输入端口"
+              style={{
+                width: 20, height: 20, borderRadius: 10,
+                border: '1px dashed #ff9800', background: '#fff8e1',
+                cursor: 'pointer', fontSize: 14, lineHeight: '18px',
+                color: '#ff9800', padding: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              +
+            </button>
           )}
         </div>
 
         {/* Output side */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
-          {nodeData.outputs.map((port, i) => (
-            <div key={port.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 10, color: '#888' }}>{port.label}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'center', alignItems: 'flex-end' }}>
+          {!hasOutputs && (
+            <span style={{ fontSize: 9, color: '#ddd', fontStyle: 'italic' }}>终端</span>
+          )}
+          {hasOutputs && nodeData.outputs.map((port, i) => (
+            <div key={port.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {nodeData.outputs.length > 1 && (
+                <span style={{ fontSize: 9, color: '#888' }}>{port.label}</span>
+              )}
               <Handle
                 type="source"
                 position={Position.Right}
                 id={port.id}
-                style={{
-                  position: 'relative',
-                  right: 0, transform: 'none',
-                  width: 8, height: 8,
-                  background: colors.strip,
-                  border: `2px solid ${colors.strip}`,
-                  borderRadius: 4,
-                }}
+                style={sourceHandleStyle(colors.strip)}
               />
             </div>
           ))}
-          {nodeData.outputs.length === 0 && (
-            <span style={{ fontSize: 10, color: '#ccc' }}>—</span>
-          )}
         </div>
       </div>
 
       {/* ── Description (collapsed) ── */}
       <div style={{
         padding: '0 10px 6px',
-        fontSize: 10, color: '#bbb',
+        fontSize: 9, color: '#bbb',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
         {mod.description}
