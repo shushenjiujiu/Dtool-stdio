@@ -8,6 +8,7 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import cors from '@fastify/cors';
+import { ModuleRegistry, registerAll } from '@dtool-studio/engine';
 import { registerTemplateRoutes } from './api/template.js';
 import { registerExecuteWS } from './ws/execute.js';
 
@@ -21,6 +22,14 @@ async function main() {
     },
   });
 
+  // ── Initialize module registry ──
+  const registry = new ModuleRegistry();
+  registerAll(registry);
+  app.log.info(`Registered ${registry.size} built-in modules`);
+
+  // Store registry on Fastify instance for route access
+  app.decorate('moduleRegistry', registry);
+
   // ── Plugins ──
   await app.register(cors, { origin: true });
   await app.register(websocket);
@@ -32,7 +41,7 @@ async function main() {
   await registerTemplateRoutes(app);
 
   // ── WebSocket routes ──
-  registerExecuteWS(app);
+  registerExecuteWS(app, registry);
 
   // ── Start ──
   try {
@@ -41,6 +50,13 @@ async function main() {
   } catch (err) {
     app.log.fatal(err);
     process.exit(1);
+  }
+}
+
+// Extend Fastify types for the decorated registry
+declare module 'fastify' {
+  interface FastifyInstance {
+    moduleRegistry: ModuleRegistry;
   }
 }
 
