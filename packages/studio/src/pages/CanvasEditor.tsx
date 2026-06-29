@@ -174,6 +174,21 @@ export function CanvasEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+  // Edge interactions
+  const defaultEdgeOptions = useMemo(() => ({
+    type: 'smoothstep' as const,
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#6a4c93' },
+    style: { stroke: '#6a4c93', strokeWidth: 2 },
+    deletable: true,
+  }), []);
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdgeIds([edge.id]);
+    setSelectedNodeIds([]);
+  }, []);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+
   // Undo/Redo
   const undoStack = useRef<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
   const redoStack = useRef<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
@@ -185,6 +200,41 @@ export function CanvasEditor() {
 
   // Selection state
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+
+  // ── Delete handler (nodes + edges) — defined after pushUndo & selectedNodeIds ──
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedEdgeIds.length > 0) {
+      pushUndo();
+      setEdges((eds) => eds.filter((e) => !selectedEdgeIds.includes(e.id)));
+      setSelectedEdgeIds([]);
+    } else if (selectedNodeIds.length > 0) {
+      pushUndo();
+      setNodes((nds) => nds.filter((n) => !selectedNodeIds.includes(n.id)));
+      setEdges((eds) => eds.filter((e) =>
+        !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target),
+      ));
+      setSelectedNodeIds([]);
+    }
+  }, [selectedEdgeIds, selectedNodeIds, setNodes, setEdges, pushUndo]);
+
+  // Enhanced edges with hover/select styling
+  const displayEdges = useMemo(() => edges.map((e) => ({
+    ...e,
+    style: {
+      ...e.style,
+      stroke: selectedEdgeIds.includes(e.id) ? '#ef5350'
+        : hoveredEdgeId === e.id ? '#ab47bc'
+        : (e.style?.stroke || '#6a4c93'),
+      strokeWidth: selectedEdgeIds.includes(e.id) || hoveredEdgeId === e.id ? 3
+        : (e.style?.strokeWidth || 2),
+    },
+    markerEnd: {
+      ...(e.markerEnd as any || {}),
+      color: selectedEdgeIds.includes(e.id) ? '#ef5350'
+        : hoveredEdgeId === e.id ? '#ab47bc'
+        : '#6a4c93',
+    },
+  })), [edges, selectedEdgeIds, hoveredEdgeId]);
 
   // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -231,7 +281,13 @@ export function CanvasEditor() {
 
   // ── Connection ──
   const onConnect = useCallback((connection: Connection) => {
-    // Type check: validate source and target port types
+    // Rule 1: One input port → one source only (prevent multi-input clash)
+    const existingEdge = edges.find(
+      (e) => e.target === connection.target && e.targetHandle === connection.targetHandle,
+    );
+    if (existingEdge) return;
+
+    // Rule 2: Type check
     const srcNode = nodes.find((n) => n.id === connection.source);
     const tgtNode = nodes.find((n) => n.id === connection.target);
     if (srcNode && tgtNode) {
@@ -243,10 +299,7 @@ export function CanvasEditor() {
       const tgtPort = tgtPorts.find((p: any) => p.id === (connection.targetHandle || 'data'));
       const srcType = srcPort?.type || 'string';
       const tgtType = tgtPort?.type || 'string';
-      // any is universal; otherwise types must match
-      if (srcType !== 'any' && tgtType !== 'any' && srcType !== tgtType) {
-        return; // silently reject incompatible connection
-      }
+      if (srcType !== 'any' && tgtType !== 'any' && srcType !== tgtType) return;
     }
 
     pushUndo();
@@ -254,15 +307,48 @@ export function CanvasEditor() {
       ...connection,
       type: 'smoothstep',
       animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#6a4c93' },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: '#6a4c93' },
       style: { stroke: '#6a4c93', strokeWidth: 2 },
+      deletable: true,
     }, eds));
-  }, [nodes, setEdges, pushUndo]);
+    setSelectedEdgeIds([]);
+  }, [nodes, edges, setEdges, pushUndo]);
 
   // ── Selection change ──
-  const onSelectionChange = useCallback(({ nodes: selNodes }: OnSelectionChangeParams) => {
+  const onSelectionChange = useCallback(({ nodes: selNodes, edges: selEdges }: OnSelectionChangeParams) => {
     setSelectedNodeIds(selNodes.map((n) => n.id));
+    if (selEdges.length > 0) setSelectedEdgeIds(selEdges.map((e) => e.id));
   }, []);
+
+  // ── Node context menu ──
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setContextMenu({ x: event.clientX, y: event.clientY, nodeId: node.id });
+  }, []);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  React.useEffect(() => {
+    if (contextMenu) {
+      const h = () => setContextMenu(null);
+      window.addEventListener('click', h);
+      return () => window.removeEventListener('click', h);
+    }
+  }, [contextMenu]);
+
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    pushUndo();
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setContextMenu(null);
+  }, [setNodes, setEdges, pushUndo]);
+
+  const handleDuplicateNode = useCallback((nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    pushUndo();
+    setNodes((nds) => [...nds, { ...node, id: nextId(), position: { x: node.position.x + 40, y: node.position.y + 40 }, selected: false }]);
+    setContextMenu(null);
+  }, [nodes, setNodes, pushUndo]);
 
   // ── Drag from sidebar → create node ──
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -503,6 +589,15 @@ export function CanvasEditor() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
+      // Delete / Backspace — remove selected nodes or edges
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedEdgeIds.length > 0 || selectedNodeIds.length > 0) {
+          e.preventDefault();
+          handleDeleteSelected();
+          return;
+        }
+      }
+
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
@@ -530,7 +625,7 @@ export function CanvasEditor() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleUndo, handleRedo, handleAutoLayout, nodes]);
+  }, [handleUndo, handleRedo, handleAutoLayout, nodes, handleDeleteSelected, selectedEdgeIds, selectedNodeIds]);
 
   const updateNodeStatus = useCallback((nodeId: string, status: 'running' | 'completed' | 'error') => {
     setNodes((nds) => nds.map((n) =>
@@ -933,6 +1028,11 @@ export function CanvasEditor() {
             <span style={{ color: '#aaa' }}>
               {nodes.length} 节点 · {edges.length} 连线
             </span>
+            {selectedEdgeIds.length > 0 && (
+              <span style={{ color: '#ef5350', fontSize: 11 }}>
+                ⚡ 已选连线 (按 Delete 删除)
+              </span>
+            )}
             {selectedNodeIds.length > 0 && (
               <>
                 <span style={{ color: '#6a4c93' }}>
@@ -978,7 +1078,7 @@ export function CanvasEditor() {
         <div style={{ flex: 1, position: 'relative' }} ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -986,17 +1086,24 @@ export function CanvasEditor() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeDoubleClick={handleNodeDoubleClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onEdgeClick={onEdgeClick}
+            onEdgeMouseEnter={(_e, edge) => setHoveredEdgeId(edge.id)}
+            onEdgeMouseLeave={() => setHoveredEdgeId(null)}
             onBeforeDelete={async () => { pushUndo(); return true; }}
             onSelectionChange={onSelectionChange}
+            onPaneClick={() => { setSelectedEdgeIds([]); setContextMenu(null); }}
             nodeTypes={nodeTypes}
+            defaultEdgeOptions={defaultEdgeOptions}
             fitView
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={[]}
             snapToGrid
             snapGrid={[10, 10]}
             style={{ background: '#f8f9fa' }}
             selectNodesOnDrag={false}
             panOnDrag={[1, 2]}
             selectionOnDrag
+            edgesFocusable
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e0e0e0" />
             <Controls />
@@ -1042,6 +1149,45 @@ export function CanvasEditor() {
           </div>
         )}
       </div>
+
+      {/* ── Context menu ── */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed', left: contextMenu.x, top: contextMenu.y,
+            zIndex: 200, background: '#fff', borderRadius: 8,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            border: '1px solid #e0e0e0', minWidth: 140,
+            overflow: 'hidden',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleDuplicateNode(contextMenu.nodeId)}
+            style={{
+              display: 'block', width: '100%', padding: '8px 16px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, textAlign: 'left', borderBottom: '1px solid #f0f0f0',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#f0ecf7'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+          >
+            📋 复制节点
+          </button>
+          <button
+            onClick={() => handleDeleteNode(contextMenu.nodeId)}
+            style={{
+              display: 'block', width: '100%', padding: '8px 16px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, textAlign: 'left', color: '#c62828',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#ffebee'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+          >
+            🗑 删除节点
+          </button>
+        </div>
+      )}
 
       {/* ── Wrap modal ── */}
       {wrapModal.open && (

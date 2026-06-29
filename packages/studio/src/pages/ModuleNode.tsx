@@ -6,7 +6,7 @@
  */
 
 import React, { memo } from 'react';
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { Handle, Position, NodeResizer, type Node, type NodeProps } from '@xyflow/react';
 import type { ModuleCatalogItem } from '../modules.js';
 
 // ── Port definition ────────────────────────────────────────────────────────
@@ -62,11 +62,17 @@ export const ModuleNode = memo(({ data, selected }: NodeProps<ModuleNodeType>) =
           ? '0 4px 16px rgba(106,76,147,0.25)'
           : '0 1px 3px rgba(0,0,0,0.08)',
         minWidth: 160,
-        maxWidth: 200,
         fontSize: 12,
         transition: 'box-shadow 0.15s, border-color 0.15s',
       }}
     >
+      <NodeResizer
+        minWidth={140}
+        minHeight={60}
+        isVisible={selected}
+        lineStyle={{ borderColor: '#6a4c93' }}
+        handleStyle={{ width: 8, height: 8, background: '#6a4c93', border: '2px solid #fff' }}
+      />
       {/* ── Header ── */}
       <div style={{
         padding: '6px 10px 4px',
